@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">D-Lock</string>
-    <string name="service_description">D-Lock détecte uniquement quelle appli est ouverte, pour afficher l\'écran de verrouillage sur les applis que vous avez choisies et vérifier le VPN avant YouTube. Aucun contenu n\'est lu ni envoyé.</string>
 </resources>

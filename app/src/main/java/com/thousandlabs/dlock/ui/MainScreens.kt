@@ -75,7 +75,7 @@ import com.thousandlabs.dlock.data.Apps
 import com.thousandlabs.dlock.data.Bio
 import com.thousandlabs.dlock.data.Store
 import com.thousandlabs.dlock.data.Vpn
-import com.thousandlabs.dlock.service.LockService
+import com.thousandlabs.dlock.service.MonitorService
 import com.thousandlabs.dlock.update.Updater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -137,7 +137,8 @@ private fun Navigation(activity: ComponentActivity, resumeTick: Int) {
 @Composable
 private fun HomeScreen(activity: ComponentActivity, resumeTick: Int, go: (Screen) -> Unit) {
     val context = LocalContext.current
-    val serviceOn = remember(resumeTick) { LockService.isEnabled(context) }
+    val usageOk = remember(resumeTick) { MonitorService.hasUsageAccess(context) }
+    val overlayOk = remember(resumeTick) { MonitorService.hasOverlay(context) }
     val batteryOk = remember(resumeTick) {
         context.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(context.packageName) == true
     }
@@ -183,23 +184,34 @@ private fun HomeScreen(activity: ComponentActivity, resumeTick: Int, go: (Screen
         }
 
         SectionCard("Protection", Icons.Outlined.Shield) {
-            StatusLine(serviceOn, if (serviceOn) "Service D-Lock actif" else "Service D-Lock désactivé : rien n'est verrouillé")
-            if (!serviceOn) {
+            val allOk = usageOk && overlayOk
+            StatusLine(allOk, if (allOk) "D-Lock surveille l'ouverture des applis" else "Deux autorisations manquent : rien n'est verrouillé")
+            StatusLine(usageOk, "Accès aux données d'utilisation")
+            if (!usageOk) {
                 Text(
-                    "Activez « D-Lock » dans Accessibilité. Si l'option est grisée, ouvrez d'abord les infos de l'appli, " +
-                        "touchez les trois points en haut à droite puis « Autoriser les paramètres restreints ».",
+                    "Permet de savoir quelle appli vient d'être ouverte. Dans la liste, choisissez D-Lock et activez l'accès.",
                     color = TextDim, fontSize = 13.sp,
                 )
                 Button(onClick = {
-                    runCatching { activity.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                }, modifier = Modifier.fillMaxWidth()) { Text("Ouvrir Accessibilité") }
-                OutlinedButton(onClick = {
+                    val withPkg = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:${context.packageName}"))
+                    runCatching { activity.startActivity(withPkg) }.onFailure {
+                        runCatching { activity.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
+                    }
+                }, modifier = Modifier.fillMaxWidth()) { Text("Autoriser l'accès aux données d'utilisation") }
+            }
+            StatusLine(overlayOk, "Affichage par-dessus les autres applis")
+            if (!overlayOk) {
+                Text(
+                    "Permet d'afficher l'écran de verrouillage devant l'appli ouverte.",
+                    color = TextDim, fontSize = 13.sp,
+                )
+                Button(onClick = {
                     runCatching {
                         activity.startActivity(
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
                         )
                     }
-                }, modifier = Modifier.fillMaxWidth()) { Text("Infos de l'appli (paramètres restreints)") }
+                }, modifier = Modifier.fillMaxWidth()) { Text("Autoriser l'affichage par-dessus") }
             }
             StatusLine(batteryOk, if (batteryOk) "Fonctionne en arrière-plan sans restriction" else "Batterie : D-Lock risque d'être fermé par le téléphone")
             if (!batteryOk) {
@@ -421,9 +433,10 @@ private fun GuideScreen(onBack: () -> Unit) {
                 "Mise en route (une seule fois)",
                 listOf(
                     "Installez D-Lock et créez votre code (PIN, schéma ou mot de passe).",
-                    "Ouvrez Paramètres › Applis › D-Lock, touchez les trois points en haut à droite puis « Autoriser les paramètres restreints ». Sans cela, Android grise l'option d'accessibilité.",
-                    "Dans D-Lock, touchez « Ouvrir Accessibilité », choisissez D-Lock et activez-le.",
+                    "Touchez « Autoriser l'accès aux données d'utilisation », choisissez D-Lock dans la liste et activez-le. D-Lock sait ainsi quelle appli vient d'être ouverte.",
+                    "Touchez « Autoriser l'affichage par-dessus » et activez-le : c'est ce qui permet d'afficher l'écran de verrouillage.",
                     "Touchez « Autoriser en arrière-plan » pour que le téléphone ne ferme pas D-Lock. Si HiOS le ferme quand même, autorisez son démarrage automatique dans Phone Master.",
+                    "Une notification discrète « D-Lock actif » reste affichée : Android l'exige pour que la surveillance continue. Vous pouvez la masquer dans les réglages de notification de D-Lock sans arrêter la protection.",
                 ),
             )
             GuideBlock(
@@ -449,11 +462,18 @@ private fun GuideScreen(onBack: () -> Unit) {
                 listOf(
                     "Pour éviter de désactiver D-Lock sur un coup de tête, verrouillez aussi l'appli Paramètres.",
                     "Si vous oubliez votre code, il faut effacer les données de D-Lock (Paramètres › Applis › D-Lock › Stockage) puis le reconfigurer.",
-                    "D-Lock ne lit rien à l'écran et n'envoie aucune donnée : Internet ne sert qu'aux mises à jour.",
+                    "D-Lock ne lit rien à l'écran et n'envoie aucune donnée : il voit seulement le nom de l'appli ouverte. Internet ne sert qu'aux mises à jour.",
                 ),
             )
             SectionCard("Nouveautés", Icons.Outlined.SystemUpdate) {
-                Text("Version 1 : première version de D-Lock.", color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text("Version 1.2", color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(
+                    "D-Lock n'utilise plus le service d'accessibilité, que Google Play Protect bloquait à l'installation. " +
+                        "Il fonctionne désormais avec « Accès aux données d'utilisation » et « Affichage par-dessus les autres applis », " +
+                        "sans « paramètres restreints » à débloquer. Relance automatique après un redémarrage du téléphone.",
+                    color = TextDim, fontSize = 13.sp,
+                )
+                Text("Version 1.1 : première version de D-Lock.", color = TextMain, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Text(
                     "YouTube officiel réservé au VPN (Privado), avec retour automatique après connexion et accès exceptionnel par code ; " +
                         "verrouillage des autres applis par code PIN, schéma, mot de passe ou empreinte ; D-Lock protégé par le même code ; " +

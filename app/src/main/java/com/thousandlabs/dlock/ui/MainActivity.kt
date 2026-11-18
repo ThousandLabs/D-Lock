@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.thousandlabs.dlock.data.Store
+import com.thousandlabs.dlock.service.MonitorService
 import com.thousandlabs.dlock.update.Updater
 
 class MainActivity : ComponentActivity() {
@@ -42,6 +43,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         resumeTick++
+        // démarre la surveillance dès que les autorisations sont accordées
+        if (Store.hasSecret()) MonitorService.start(this)
         Updater.onAppResumed(this)
         if (unlocked) Updater.autoCheck()
     }

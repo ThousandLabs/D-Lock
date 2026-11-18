@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.thousandlabs.dlock.data.Apps
 import com.thousandlabs.dlock.data.Store
 import com.thousandlabs.dlock.data.Vpn
-import com.thousandlabs.dlock.service.LockService
+import com.thousandlabs.dlock.service.MonitorService
 
 /** Écran affiché par-dessus une appli verrouillée. */
 class LockActivity : ComponentActivity() {
@@ -107,7 +107,7 @@ class LockActivity : ComponentActivity() {
     }
 
     private fun goHome() {
-        LockService.instance?.cancelReturn()
+        MonitorService.instance?.cancelReturn()
         val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { startActivity(home) }
@@ -115,7 +115,7 @@ class LockActivity : ComponentActivity() {
     }
 
     private fun unlocked() {
-        LockService.instance?.markUnlocked(target)
+        MonitorService.instance?.markUnlocked(target)
         finish()
     }
 
