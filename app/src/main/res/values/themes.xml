@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DLock" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/dl_background</item>
+        <item name="android:statusBarColor">@color/dl_background</item>
+        <item name="android:navigationBarColor">@color/dl_background</item>
+        <item name="android:colorAccent">#FF5B9DFF</item>
+    </style>
+</resources>

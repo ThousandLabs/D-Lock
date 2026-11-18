@@ -1,0 +1,2 @@
+-keep class com.thousandlabs.dlock.** { *; }
+-dontwarn org.jetbrains.annotations.**
